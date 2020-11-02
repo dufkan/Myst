@@ -29,6 +29,7 @@ public class QuorumContext {
     public Bignat signature_counter = null;
     public short signature_counter_short = 0;
     public byte[] signature_secret_seed = null; 
+    public byte[] signature_rerandomizer = null;
 
     // Distributed keypair generation share
     ECCurve theCurve = null;
@@ -46,6 +47,7 @@ public class QuorumContext {
         cryptoOps = cryptoOperations;
         signature_counter = new Bignat(Consts.SHARE_BASIC_SIZE, JCSystem.MEMORY_TYPE_TRANSIENT_RESET, eccfg.bnh);
         signature_secret_seed = new byte[Consts.SECRET_SEED_SIZE];
+        signature_rerandomizer = new byte[Consts.BASIC_ECC_LENGTH];
         
         theCurve = curve;
         this.pair = theCurve.newKeyPair(this.pair);
@@ -319,7 +321,7 @@ public class QuorumContext {
             cryptoOps.randomData.generateData(x_i_Bn, (short) 0, (short) x_i_Bn.length);
             cryptoOps.randomData.generateData(signature_secret_seed, (short) 0, (short) signature_secret_seed.length);
             cryptoOps.randomData.generateData(this_card_Ys, (short) 0, (short) this_card_Ys.length);
-            
+            cryptoOps.randomData.generateData(signature_rerandomizer, (short) 0, (short) signature_rerandomizer.length);
         }
         // Invalidate all items
         for (short i = 0; i < Consts.MAX_NUM_PLAYERS; i++) {
@@ -362,8 +364,18 @@ public class QuorumContext {
         return cryptoOps.Gen_R_i(cryptoOps.shortToByteArray(signature_counter_short), signature_secret_seed, buffer);
     }
     
+    public short Sign_Init(short counter, byte[] buffer) {
+        state.CheckAllowedFunction(StateModel.FNC_QuorumContext_Sign_Init);
+        cryptoOps.randomData.generateData(signature_rerandomizer, (short) 0, (short) signature_rerandomizer.length);
+        Util.arrayCopyNonAtomic(signature_rerandomizer, (short) 0, buffer, (short) 0, (short) signature_rerandomizer.length);
+
+        state.MakeStateTransition(StateModel.STATE_SIGN_INITIATED);
+        return (short) signature_rerandomizer.length;
+    }
+
     public short Sign(Bignat counter, byte[] Rn_plaintext_arr, short plaintextOffset, short plaintextLength, byte[] outputArray, short outputBaseOffset) {
         state.CheckAllowedFunction(StateModel.FNC_QuorumContext_Sign);
+        state.MakeStateTransition(StateModel.STATE_KEYGEN_KEYPAIRGENERATED);
         return cryptoOps.Sign(this, counter, Rn_plaintext_arr, plaintextOffset, plaintextLength, outputArray, outputBaseOffset);   
     }
     

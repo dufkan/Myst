@@ -27,6 +27,7 @@ class SimulatedMPCPlayer implements MPCPlayer {
     public BigInteger curve_n;
     //Signing
     public byte[] secret_seed;//{ (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00};
+    public BigInteger rerandomizer;
     public BigInteger k_Bn;
     public ECPoint Ri_EC;
     public byte[] Ri_Hash;
@@ -93,6 +94,13 @@ class SimulatedMPCPlayer implements MPCPlayer {
     public boolean Reset(short quorumIndex) throws Exception {
         // TODO: at the moment, simulated player performs nothing
         return true;
+    }
+
+    @Override
+    public BigInteger SignInit(short quorumIndex, int round) throws Exception {
+        SecureRandom rnd = new SecureRandom();
+        rerandomizer = new BigInteger(256, rnd);
+        return rerandomizer;
     }
 
     @Override
@@ -175,8 +183,6 @@ class SimulatedMPCPlayer implements MPCPlayer {
     private BigInteger Sign(Bignat i, ECPoint R_EC, byte[] plaintext) throws NoSuchAlgorithmException {
         //Gen e (e will be the same in all signature shares)
         MessageDigest md = MessageDigest.getInstance("SHA-256");
-        //System.out.println("Simulated: Plaintext:" + client.bytesToHex(plaintext));
-        //System.out.println("Simulated: Ri,n:     " + client.bytesToHex(R_EC.getEncoded(false)));
         md.update(plaintext);
         md.update(R_EC.getEncoded(false)); // R_EC is the sum of the r_i's
         byte[] e = md.digest();
@@ -184,15 +190,11 @@ class SimulatedMPCPlayer implements MPCPlayer {
 
         //Gen s_i
         this.k_Bn = new BigInteger(PRF(i, secret_seed));
+        this.k_Bn = this.k_Bn.multiply(rerandomizer);
+        this.k_Bn = this.k_Bn.mod(curve_n);
 
         BigInteger s_i_BI = this.k_Bn.subtract(e_BI.multiply(this.priv_key_BI));
         s_i_BI = s_i_BI.mod(curve_n);
-
-        /* BUGBUG: I'm cheating a bit here, and use the e returned by the JC.
-         Btw e is always the same, so it can actually be computed 
-         on the host if this helps with optimizing the applet */
-        //System.out.println("Simulated: s:        " + client.bytesToHex(s_i_BI.toByteArray()));
-        //System.out.println("Simulated: e:        " + client.bytesToHex(e) + "\n");
         return s_i_BI;
     }
 

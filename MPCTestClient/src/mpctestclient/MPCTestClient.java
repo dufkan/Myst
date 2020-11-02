@@ -82,7 +82,7 @@ public class MPCTestClient {
             //runCfg.testCardType = MPCRunConfig.CARD_TYPE.PHYSICAL;
             runCfg.numSingleOpRepeats = 1;
             //runCfg.numWholeTestRepeats = 10; more than one repeat will fail on simulator due to change of address of allocated objects, runs ok on real card
-            runCfg.numPlayers = 4;
+            runCfg.numPlayers = 2;
             runCfg.cardName = "gd60";
 
             MPCProtocol_demo(runCfg);
@@ -102,7 +102,7 @@ public class MPCTestClient {
         runCfg.perfFile = new FileOutputStream(String.format("MPC_DETAILPERF_log_%s.csv", experimentID));
 
         // Prepare globals
-        mpcGlobals.Rands = new ECPoint[runCfg.numPlayers];
+        mpcGlobals.Rands = new ECPoint[runCfg.numCaching][runCfg.numPlayers];
         mpcGlobals.players.clear();
 
         // Prepare SecP256r1 curve
@@ -232,7 +232,7 @@ public class MPCTestClient {
         runCfg.perfFile = new FileOutputStream(String.format("MPC_DETAILPERF_log_%s.csv", experimentID));
 
         // Prepare globals
-        mpcGlobals.Rands = new ECPoint[runCfg.numPlayers];
+        mpcGlobals.Rands = new ECPoint[runCfg.numCaching][runCfg.numPlayers];
         mpcGlobals.players.clear();
 
         // Prepare SecP256r1 curve
@@ -488,19 +488,10 @@ public class MPCTestClient {
         counter.one();
 
         for (short round = 1; round <= mpcGlobals.Rands.length; round++) {
-            boolean bFirstPlayer = true;
-            for (MPCPlayer player : playersList) {
-                if (bFirstPlayer) {
-                    mpcGlobals.Rands[round - 1] = Util.ECPointDeSerialization(mpcGlobals.curve, player.Gen_Rin(QUORUM_INDEX, round), 0);
-                    bFirstPlayer = false;
-                } else {
-                    mpcGlobals.Rands[round - 1] = mpcGlobals.Rands[round - 1].add(Util.ECPointDeSerialization(mpcGlobals.curve, player.Gen_Rin(QUORUM_INDEX, round), 0));
-                }
+            for (short i = 0; i < playersList.size(); ++i) {
+                mpcGlobals.Rands[round - 1][i] = Util.ECPointDeSerialization(mpcGlobals.curve, playersList.get(i).Gen_Rin(QUORUM_INDEX, round), 0);
             }
             counter.add(one);
-        }
-        for (int round = 1; round <= mpcGlobals.Rands.length; round++) {
-            System.out.format("Rands[%d]%s\n", round - 1, Util.bytesToHex(mpcGlobals.Rands[round - 1].getEncoded(false)));
         }
         System.out.println();
     }
@@ -525,21 +516,22 @@ public class MPCTestClient {
         byte[] plaintext_sig = mpcGlobals.G.multiply(msgToSign).getEncoded(false);
 
         if (!playersList.isEmpty()) {
-            BigInteger sum_s_BI = new BigInteger("0");
-            BigInteger card_e_BI = new BigInteger("0");
-            boolean bFirstPlayer = true;
-            for (MPCPlayer player : playersList) {
-                if (bFirstPlayer) {
-                    sum_s_BI = player.Sign(QUORUM_INDEX, counter, mpcGlobals.Rands[counter - 1].getEncoded(false), plaintext_sig);
-                    card_e_BI = player.GetE(QUORUM_INDEX);
-                    bFirstPlayer = false;
-                } else {
-                    sum_s_BI = sum_s_BI.add(player.Sign(QUORUM_INDEX, counter, mpcGlobals.Rands[counter - 1].getEncoded(false), plaintext_sig));
-                    sum_s_BI = sum_s_BI.mod(mpcGlobals.n);
-                }
+            // query for rerandomizers
+            BigInteger[] rerandomizers = new BigInteger[mpcGlobals.Rands[counter - 1].length];
+            for(int i = 0; i < playersList.size(); ++i) {
+                rerandomizers[i] = playersList.get(i).SignInit(QUORUM_INDEX, counter);
             }
-            System.out.println(String.format("Sign: %s", Util.bytesToHex(sum_s_BI.toByteArray())));
-            
+
+            ECPoint point = mpcGlobals.Rands[counter - 1][0].multiply(rerandomizers[0]);
+            for(int i = 1; i < playersList.size(); ++i) {
+                point = point.add(mpcGlobals.Rands[counter - 1][i].multiply(rerandomizers[i]));
+            }
+            BigInteger sum_s_BI = new BigInteger("0");
+            for (MPCPlayer player : playersList) {
+                sum_s_BI = sum_s_BI.add(player.Sign(QUORUM_INDEX, counter, point.getEncoded(false), plaintext_sig));
+                sum_s_BI = sum_s_BI.mod(mpcGlobals.n);
+            }
+
             if(Verify(plaintext_sig, mpcGlobals.AggPubKey, sum_s_BI, playersList.get(0).GetE(QUORUM_INDEX))) {
                 System.out.println("Signature is valid.");
             } else {
@@ -549,7 +541,6 @@ public class MPCTestClient {
     }
 
     private static boolean Verify(byte[] plaintext, ECPoint pubkey, BigInteger s_bi, BigInteger e_bi) throws Exception {
-
         // Compute rv = sG+eY
         ECPoint rv_EC = mpcGlobals.G.multiply(s_bi); // sG
         rv_EC = rv_EC.add(pubkey.multiply(e_bi)); // +eY
@@ -562,8 +553,6 @@ public class MPCTestClient {
         BigInteger ev_bi = new BigInteger(1, ev);
         ev_bi = ev_bi.mod(mpcGlobals.n);
 
-        ///System.out.println(bytesToHex(e_bi.toByteArray()));		
-        //System.out.println(bytesToHex(ev_bi.toByteArray()));
         if (_FAIL_ON_ASSERT) {
             assert (e_bi.compareTo(ev_bi) == 0);
         }

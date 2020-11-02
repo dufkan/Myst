@@ -29,5 +29,5 @@ public class MPCGlobals {
 
     static ArrayList<MPCPlayer> players = new ArrayList<>();
 
-    public static ECPoint[] Rands;
+    public static ECPoint[][] Rands;
 }

@@ -26,6 +26,8 @@ public interface MPCPlayer {
 
     public boolean Reset(short quorumIndex) throws Exception;
 
+    public BigInteger SignInit(short quorumIndex, int round) throws Exception;
+
     public BigInteger Sign(short quorumIndex, int round, byte[] Rn, byte[] plaintext) throws Exception;
 
     public boolean GenKeyPair(short quorumIndex) throws Exception;

@@ -176,6 +176,9 @@ public class MPCApplet extends Applet {
                 //    
                 // Signing
                 //
+                case Consts.INS_SIGN_INIT:
+                    Sign_Init(apdu);
+                    break;
                 case Consts.INS_SIGN_RETRIEVE_RI:
                     Sign_RetrieveRandomRi(apdu);
                     break;
@@ -620,6 +623,24 @@ public class MPCApplet extends Applet {
         apdu.setOutgoingAndSend((short) 0, dataLen);
     }
     
+    /**
+     * Preliminary signing round used for nonce re-randomization.
+     *
+     * @apdu input apdu
+     */
+    void Sign_Init(APDU apdu) {
+        byte[] apdubuf = apdu.getBuffer();
+        short paramsOffset = GetOperationParamsOffset(Consts.INS_SIGN_INIT, apdu);
+        // Parse incoming apdu to obtain target quorum context
+        QuorumContext quorumCtx = GetTargetQuorumContext(apdubuf, paramsOffset);
+        // Verify authorization
+        quorumCtx.VerifyCallerAuthorization(apdu, StateModel.FNC_QuorumContext_Sign_Init);
+
+        short counter = Util.getShort(apdubuf, (short) (paramsOffset + Consts.PACKET_PARAMS_SIGNRETRIEVERI_COUNTER_OFFSET));
+        short len = quorumCtx.Sign_Init(counter, apdubuf);
+        apdu.setOutgoingAndSend((short) 0, len);
+    }
+
     /**
      * First part of distributed signature scheme (Algorithm 4.7). All KeyGen_xxx must be executed
      * before. 

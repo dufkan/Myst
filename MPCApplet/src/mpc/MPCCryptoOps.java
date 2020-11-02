@@ -32,6 +32,8 @@ public class MPCCryptoOps {
     Bignat s_Bn = null;
     Bignat xe_Bn = null;
     Bignat xi_Bn = null;
+    Bignat ri_Bn = null;
+    Bignat ti_Bn = null;
     Bignat aBn = null;
     
     Bignat resBn1 = null;
@@ -137,6 +139,8 @@ public class MPCCryptoOps {
         e_Bn = new Bignat(Consts.SHARE_BASIC_SIZE, JCSystem.MEMORY_TYPE_TRANSIENT_RESET, eccfg.bnh);
         s_Bn = new Bignat(Consts.SHARE_BASIC_SIZE, JCSystem.MEMORY_TYPE_TRANSIENT_RESET, eccfg.bnh);
         xi_Bn = new Bignat(Consts.SHARE_BASIC_SIZE, JCSystem.MEMORY_TYPE_TRANSIENT_RESET, eccfg.bnh);
+        ri_Bn = new Bignat(Consts.SHARE_BASIC_SIZE, JCSystem.MEMORY_TYPE_TRANSIENT_RESET, eccfg.bnh);
+        ti_Bn = new Bignat(Consts.SHARE_BASIC_SIZE, JCSystem.MEMORY_TYPE_TRANSIENT_RESET, eccfg.bnh);
         xe_Bn = new Bignat(Consts.SHARE_DOUBLE_SIZE, JCSystem.MEMORY_TYPE_TRANSIENT_RESET, eccfg.bnh);
         
         resBn1 = new Bignat((short) ((short) (eccfg.bnh.MULT_RSA_ENGINE_MAX_LENGTH_BITS / 8) + 1), JCSystem.MEMORY_TYPE_TRANSIENT_RESET, eccfg.bnh);
@@ -296,8 +300,13 @@ public class MPCCryptoOps {
         PM.check(PM.TRAP_CRYPTOPS_SIGN_3); // +15ms
         // s
         //s_Bn.zero();
-        s_Bn.from_byte_array(Consts.SHARE_BASIC_SIZE, (short) 0, PRF(counter, quorumCtx.signature_secret_seed), (short) 0); // s
+        ri_Bn.from_byte_array(Consts.SHARE_BASIC_SIZE, (short) 0, PRF(counter, quorumCtx.signature_secret_seed), (short) 0); // s
 
+        // t_i
+        ti_Bn.from_byte_array(Consts.SHARE_BASIC_SIZE, (short) 0, quorumCtx.signature_rerandomizer, (short) 0);
+
+        // t_i * r_i
+        s_Bn.mod_mult(ri_Bn, ti_Bn, modulo_Bn);
 
         PM.check(PM.TRAP_CRYPTOPS_SIGN_4); 
         // xe

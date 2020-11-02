@@ -379,8 +379,15 @@ public class CardMPCPlayer implements MPCPlayer {
     }
 
     @Override
-    public BigInteger Sign(short quorumIndex, int round, byte[] Rn, byte[] plaintext) throws Exception {
+    public BigInteger SignInit(short quorumIndex, int round) throws Exception {
+        byte[] packetData = preparePacketData(Consts.INS_SIGN_INIT, quorumIndex, (short) round);
+        CommandAPDU cmd = new CommandAPDU(Consts.CLA_MPC, Consts.INS_SIGN_INIT, round, 0x0, packetData);
+        ResponseAPDU response = transmit(channel, cmd);
+        return new BigInteger(1, response.getData());
+    }
 
+    @Override
+    public BigInteger Sign(short quorumIndex, int round, byte[] Rn, byte[] plaintext) throws Exception {
         //String operationName = String.format("Signature(%s) (INS_SIGN)", msgToSign.toString());            
         byte[] signature = Sign_plain(quorumIndex, round, Rn, plaintext);
 
