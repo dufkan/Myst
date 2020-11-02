@@ -97,7 +97,7 @@ class SimulatedMPCPlayer implements MPCPlayer {
 
     @Override
     public BigInteger Sign(short quorumIndex, int round, byte[] Rn, byte[] plaintext) throws Exception {
-        Bignat roundBn = Util.makeBignatFromValue(round);
+        Bignat roundBn = Util.makeBignatFromValue((short) round);
         return Sign(roundBn, Util.ECPointDeSerialization(curve, Rn, 0), plaintext);
     }
 

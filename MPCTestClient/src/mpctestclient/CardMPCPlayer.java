@@ -379,10 +379,10 @@ public class CardMPCPlayer implements MPCPlayer {
     }
 
     @Override
-    public BigInteger Sign(short quorumIndex, int round, byte[] plaintext, byte[] Rn) throws Exception {
+    public BigInteger Sign(short quorumIndex, int round, byte[] Rn, byte[] plaintext) throws Exception {
 
         //String operationName = String.format("Signature(%s) (INS_SIGN)", msgToSign.toString());            
-        byte[] signature = Sign_plain(quorumIndex, round, plaintext, Rn);
+        byte[] signature = Sign_plain(quorumIndex, round, Rn, plaintext);
 
         //Parse s from Card
         Bignat card_s_Bn = new Bignat((short) 32, false);
@@ -399,7 +399,7 @@ public class CardMPCPlayer implements MPCPlayer {
         return card_s_bi;
     }
 
-    public byte[] Sign_plain(short quorumIndex, int round, byte[] plaintext, byte[] Rn) throws Exception {
+    public byte[] Sign_plain(short quorumIndex, int round, byte[] Rn, byte[] plaintext) throws Exception {
         byte[] packetData = preparePacketData(Consts.INS_SIGN, quorumIndex, (short) round, (short) ((short) plaintext.length + (short) Rn.length));
         CommandAPDU cmd = new CommandAPDU(Consts.CLA_MPC, Consts.INS_SIGN, round, 0x0, Util.concat(packetData, Util.concat(plaintext, Rn)));
         ResponseAPDU response = transmit(channel, cmd);

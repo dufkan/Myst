@@ -111,7 +111,8 @@ public class MPCTestClient {
         // Obtain list of all connected MPC cards
         System.out.print("Connecting to MPC cards...");
         ArrayList<CardChannel> cardsList = new ArrayList<>();
-        CardManagement.ConnectAllPhysicalCards(runCfg.appletAID, cardsList);
+        //CardManagement.ConnectAllPhysicalCards(runCfg.appletAID, cardsList);
+        cardsList.add(CardManagement.ConnectJCardSimLocalSimulator(runCfg.appletToSimulate, runCfg.appletAID));
         // Create card contexts, fill cards IDs
         short cardID = runCfg.thisCardID;
         for (CardChannel channel : cardsList) {
@@ -538,6 +539,12 @@ public class MPCTestClient {
                 }
             }
             System.out.println(String.format("Sign: %s", Util.bytesToHex(sum_s_BI.toByteArray())));
+            
+            if(Verify(plaintext_sig, mpcGlobals.AggPubKey, sum_s_BI, playersList.get(0).GetE(QUORUM_INDEX))) {
+                System.out.println("Signature is valid.");
+            } else {
+                System.out.println("Signature is invalid.");
+            }
         }
     }
 
